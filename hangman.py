@@ -1,8 +1,32 @@
 import random
+import os
 
-def choose_word():
-    words = ['python', 'java', 'hackclub', 'javascript', 'hangman', 'hakkun', 'arcade']
-    return random.choice(words)
+HIGH_SCORES_FILE = "high_scores.txt"
+
+def choose_category():
+    categories = {
+        'Animals': ['elephant', 'giraffe', 'dolphin', 'kangaroo', 'alligator', 'penguin', 'rhinoceros'],
+        'Fruits': ['apple', 'banana', 'cherry', 'date', 'grape', 'kiwi', 'mango'],
+        'Countries': ['brazil', 'canada', 'denmark', 'egypt', 'finland', 'germany', 'india', 'france'],
+        'Programming Languages': ['python', 'java', 'kotlin', 'javascript', 'ruby', 'swift', 'golang'],
+        'Sports': ['football', 'cricket', 'basketball', 'tennis', 'badminton', 'rugby', 'hockey']
+    }
+    
+    print("Please choose a category:")
+    for i, category in enumerate(categories.keys(), 1):
+        print(f"{i}. {category}")
+    
+    while True:
+        try:
+            choice = int(input("Enter the number of your choice: "))
+            if 1 <= choice <= len(categories):
+                chosen_category = list(categories.keys())[choice - 1]
+                print(f"You chose: {chosen_category}")
+                return random.choice(categories[chosen_category])
+            else:
+                print("Please enter a valid number.")
+        except ValueError:
+            print("Please enter a number.")
 
 def display_game_state(word, guessed_letters):
     display = ''.join([letter if letter in guessed_letters else '_' for letter in word])
@@ -24,9 +48,9 @@ def draw_hangman(attempts_remaining):
         """
            ------
            |    |
-           |    O
-           |   /|\\
-           |   / \\
+           |
+           |
+           |
            |
         --------
         """,
@@ -34,8 +58,8 @@ def draw_hangman(attempts_remaining):
            ------
            |    |
            |    O
-           |   /|\\
-           |   / 
+           |
+           |
            |
         --------
         """,
@@ -43,8 +67,8 @@ def draw_hangman(attempts_remaining):
            ------
            |    |
            |    O
-           |   /|\\
-           |    
+           |    |
+           |
            |
         --------
         """,
@@ -53,7 +77,7 @@ def draw_hangman(attempts_remaining):
            |    |
            |    O
            |   /|
-           |    
+           |
            |
         --------
         """,
@@ -61,8 +85,8 @@ def draw_hangman(attempts_remaining):
            ------
            |    |
            |    O
-           |    |
-           |    
+           |   /|\\
+           |
            |
         --------
         """,
@@ -70,31 +94,58 @@ def draw_hangman(attempts_remaining):
            ------
            |    |
            |    O
-           |    
-           |    
+           |   /|\\
+           |   /
            |
         --------
         """,
         """
            ------
            |    |
-           |    
-           |    
-           |    
+           |    O
+           |   /|\\
+           |   / \\
            |
         --------
         """
     ]
     print(stages[6 - attempts_remaining])
 
+def load_high_scores():
+    if not os.path.exists(HIGH_SCORES_FILE):
+        return []
+
+    with open(HIGH_SCORES_FILE, 'r') as file:
+        scores = [line.strip() for line in file.readlines()]
+    return scores
+
+def save_high_score(new_score):
+    scores = load_high_scores()
+    scores.append(new_score)
+    scores.sort()
+    with open(HIGH_SCORES_FILE, 'w') as file:
+        for score in scores:
+            file.write(f"{score}\n")
+
+def display_high_scores():
+    scores = load_high_scores()
+    if scores:
+        print("\nHigh Scores:")
+        for i, score in enumerate(scores[:5], 1):
+            print(f"{i}. {score}")
+    else:
+        print("\nNo high scores yet.")
+
 def play_hangman():
-    word = choose_word()
+    word = choose_category()
     guessed_letters = set()
     attempts_remaining = 6
     won = False
 
     print("Welcome to Hangman!")
     print(f"The word has {len(word)} letters.")
+    
+    display_high_scores()
 
     while attempts_remaining > 0 and not won:
         draw_hangman(attempts_remaining)
@@ -113,6 +164,8 @@ def play_hangman():
 
     if won:
         print(f"Congratulations! You've guessed the word '{word}' correctly!")
+        score = f"{attempts_remaining} attempts left - Word: {word}"
+        save_high_score(score)
     else:
         draw_hangman(0)
         print(f"Game over! The word was '{word}'. Better luck next time.")
