@@ -1,115 +1,19 @@
+import tkinter as tk
+from tkinter import messagebox
 import random
 import os
+import pygame
 
+pygame.mixer.init()
 HIGH_SCORES_FILE = "high_scores.txt"
 
-def choose_category():
-    categories = {
-        'Animals': ['elephant', 'giraffe', 'dolphin', 'kangaroo', 'alligator', 'penguin', 'rhinoceros'],
-        'Fruits': ['apple', 'banana', 'cherry', 'date', 'grape', 'kiwi', 'mango'],
-        'Countries': ['brazil', 'canada', 'denmark', 'egypt', 'finland', 'germany', 'india', 'france'],
-        'Programming Languages': ['python', 'java', 'kotlin', 'javascript', 'ruby', 'swift', 'golang'],
-        'Sports': ['football', 'cricket', 'basketball', 'tennis', 'badminton', 'rugby', 'hockey']
-    }
-    
-    print("Please choose a category:")
-    for i, category in enumerate(categories.keys(), 1):
-        print(f"{i}. {category}")
-    
-    while True:
-        try:
-            choice = int(input("Enter the number of your choice: "))
-            if 1 <= choice <= len(categories):
-                chosen_category = list(categories.keys())[choice - 1]
-                print(f"You chose: {chosen_category}")
-                return random.choice(categories[chosen_category])
-            else:
-                print("Please enter a valid number.")
-        except ValueError:
-            print("Please enter a number.")
+CORRECT_SOUND = 'correct.wav'
+WIN_SOUND = 'win.wav'
+LOSE_SOUND = 'lose.wav'
 
-def display_game_state(word, guessed_letters):
-    display = ''.join([letter if letter in guessed_letters else '_' for letter in word])
-    print(f"Word: {display}")
-
-def get_guess(guessed_letters):
-    while True:
-        guess = input("Guess a letter: ").lower()
-        if len(guess) == 1 and guess.isalpha():
-            if guess in guessed_letters:
-                print("You've already guessed that letter.")
-            else:
-                return guess
-        else:
-            print("Please enter a single valid letter.")
-
-def draw_hangman(attempts_remaining):
-    stages = [
-        """
-           ------
-           |    |
-           |
-           |
-           |
-           |
-        --------
-        """,
-        """
-           ------
-           |    |
-           |    O
-           |
-           |
-           |
-        --------
-        """,
-        """
-           ------
-           |    |
-           |    O
-           |    |
-           |
-           |
-        --------
-        """,
-        """
-           ------
-           |    |
-           |    O
-           |   /|
-           |
-           |
-        --------
-        """,
-        """
-           ------
-           |    |
-           |    O
-           |   /|\\
-           |
-           |
-        --------
-        """,
-        """
-           ------
-           |    |
-           |    O
-           |   /|\\
-           |   /
-           |
-        --------
-        """,
-        """
-           ------
-           |    |
-           |    O
-           |   /|\\
-           |   / \\
-           |
-        --------
-        """
-    ]
-    print(stages[6 - attempts_remaining])
+def play_sound(sound_file):
+    if os.path.exists(sound_file):
+        pygame.mixer.Sound(sound_file).play()
 
 def load_high_scores():
     if not os.path.exists(HIGH_SCORES_FILE):
@@ -130,45 +34,87 @@ def save_high_score(new_score):
 def display_high_scores():
     scores = load_high_scores()
     if scores:
-        print("\nHigh Scores:")
-        for i, score in enumerate(scores[:5], 1):
-            print(f"{i}. {score}")
+        return "\n".join(scores[:5])
     else:
-        print("\nNo high scores yet.")
+        return "No high scores yet."
 
-def play_hangman():
-    word = choose_category()
-    guessed_letters = set()
-    attempts_remaining = 6
-    won = False
+def choose_category():
+    categories = {
+        'Animals': ['elephant', 'giraffe', 'dolphin', 'kangaroo', 'alligator', 'penguin', 'rhinoceros'],
+        'Fruits': ['apple', 'banana', 'cherry', 'date', 'grape', 'kiwi', 'mango'],
+        'Countries': ['brazil', 'canada', 'denmark', 'egypt', 'finland', 'germany', 'india'],
+        'Programming Languages': ['python', 'java', 'kotlin', 'javascript', 'ruby', 'swift', 'golang'],
+        'Sports': ['soccer', 'cricket', 'basketball', 'tennis', 'badminton', 'rugby', 'hockey']
+    }
+    return random.choice(categories[random.choice(list(categories.keys()))])
 
-    print("Welcome to Hangman!")
-    print(f"The word has {len(word)} letters.")
-    
-    display_high_scores()
+class HangmanGame(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Hangman Game")
+        self.geometry("600x400")
 
-    while attempts_remaining > 0 and not won:
-        draw_hangman(attempts_remaining)
-        display_game_state(word, guessed_letters)
-        print(f"Attempts remaining: {attempts_remaining}")
-        guess = get_guess(guessed_letters)
-        guessed_letters.add(guess)
+        self.word = choose_category()
+        self.guessed_letters = set()
+        self.attempts_remaining = 6
+        
+        self.setup_gui()
+        self.update_display()
 
-        if guess in word:
-            print(f"Good job! The letter '{guess}' is in the word.")
-            if all(letter in guessed_letters for letter in word):
-                won = True
+    def setup_gui(self):
+        self.word_display = tk.Label(self, text="", font=("Helvetica", 18))
+        self.word_display.pack(pady=20)
+
+        self.entry = tk.Entry(self)
+        self.entry.pack(pady=10)
+        self.entry.bind("<Return>", self.make_guess)
+
+        self.attempts_label = tk.Label(self, text=f"Attempts Remaining: {self.attempts_remaining}")
+        self.attempts_label.pack(pady=10)
+
+        self.high_scores_label = tk.Label(self, text=f"High Scores:\n{display_high_scores()}", font=("Helvetica", 12))
+        self.high_scores_label.pack(pady=20)
+
+    def update_display(self):
+        display_word = ' '.join([letter if letter in self.guessed_letters else '_' for letter in self.word])
+        self.word_display.config(text=display_word)
+        self.attempts_label.config(text=f"Attempts Remaining: {self.attempts_remaining}")
+
+    def make_guess(self, event):
+        guess = self.entry.get().lower()
+        self.entry.delete(0, tk.END)
+        if len(guess) == 1 and guess.isalpha():
+            if guess in self.guessed_letters:
+                messagebox.showinfo("Hangman", "You've already guessed that letter.")
+            else:
+                self.guessed_letters.add(guess)
+                if guess in self.word:
+                    play_sound(CORRECT_SOUND)
+                else:
+                    self.attempts_remaining -= 1
+                self.check_game_status()
+                self.update_display()
         else:
-            print(f"Sorry, the letter '{guess}' is not in the word.")
-            attempts_remaining -= 1
+            messagebox.showwarning("Hangman", "Please enter a single valid letter.")
 
-    if won:
-        print(f"Congratulations! You've guessed the word '{word}' correctly!")
-        score = f"{attempts_remaining} attempts left - Word: {word}"
+    def check_game_status(self):
+        if all(letter in self.guessed_letters for letter in self.word):
+            play_sound(WIN_SOUND)
+            messagebox.showinfo("Hangman", f"Congratulations! You've guessed the word '{self.word}' correctly!")
+            self.save_and_reset()
+        elif self.attempts_remaining == 0:
+            play_sound(LOSE_SOUND)
+            messagebox.showinfo("Hangman", f"Game over! The word was '{self.word}'. Better luck next time.")
+            self.save_and_reset()
+
+    def save_and_reset(self):
+        score = f"{self.attempts_remaining} attempts left - Word: {self.word}"
         save_high_score(score)
-    else:
-        draw_hangman(0)
-        print(f"Game over! The word was '{word}'. Better luck next time.")
+        self.word = choose_category()
+        self.guessed_letters.clear()
+        self.attempts_remaining = 6
+        self.high_scores_label.config(text=f"High Scores:\n{display_high_scores()}")
+        self.update_display()
 
 if __name__ == "__main__":
-    play_hangman()
+    HangmanGame().mainloop()
