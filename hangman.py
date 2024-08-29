@@ -3,6 +3,7 @@ from tkinter import messagebox
 import random
 import os
 import pygame
+from tkinter import ttk 
 
 pygame.mixer.init()
 HIGH_SCORES_FILE = "high_scores.txt"
@@ -49,15 +50,17 @@ def choose_category():
     return random.choice(categories[random.choice(list(categories.keys()))])
 
 class HangmanGame(tk.Tk):
-    def __init__(self):
+    def __init__(self, mode):
         super().__init__()
         self.title("Hangman Game")
-        self.geometry("600x400")
+        self.geometry("600x500")
 
+        self.mode = mode
         self.word = choose_category()
         self.guessed_letters = set()
         self.attempts_remaining = 6
-        
+        self.current_player = 1
+
         self.setup_gui()
         self.update_display()
 
@@ -72,13 +75,28 @@ class HangmanGame(tk.Tk):
         self.attempts_label = tk.Label(self, text=f"Attempts Remaining: {self.attempts_remaining}")
         self.attempts_label.pack(pady=10)
 
+        self.player_label = tk.Label(self, text=f"Player {self.current_player}'s Turn", font=("Helvetica", 12))
+        self.player_label.pack(pady=10)
+
+        self.progress_bar = ttk.Progressbar(self, orient="horizontal", length=300, mode="determinate")
+        self.progress_bar.pack(pady=20)
+        
         self.high_scores_label = tk.Label(self, text=f"High Scores:\n{display_high_scores()}", font=("Helvetica", 12))
         self.high_scores_label.pack(pady=20)
+
+        if self.mode == 'multiplayer':
+            self.player_label.config(text=f"Player {self.current_player}'s Turn")
 
     def update_display(self):
         display_word = ' '.join([letter if letter in self.guessed_letters else '_' for letter in self.word])
         self.word_display.config(text=display_word)
         self.attempts_label.config(text=f"Attempts Remaining: {self.attempts_remaining}")
+        self.update_progress_bar()
+
+    def update_progress_bar(self):
+        progress = (self.attempts_remaining / 6) * 100
+        self.progress_bar['value'] = progress
+        self.progress_bar['maximum'] = 100
 
     def make_guess(self, event):
         guess = self.entry.get().lower()
@@ -94,27 +112,56 @@ class HangmanGame(tk.Tk):
                     self.attempts_remaining -= 1
                 self.check_game_status()
                 self.update_display()
+                if self.mode == 'multiplayer':
+                    self.switch_player()
         else:
             messagebox.showwarning("Hangman", "Please enter a single valid letter.")
 
     def check_game_status(self):
         if all(letter in self.guessed_letters for letter in self.word):
             play_sound(WIN_SOUND)
-            messagebox.showinfo("Hangman", f"Congratulations! You've guessed the word '{self.word}' correctly!")
+            messagebox.showinfo("Hangman", f"Congratulations! Player {self.current_player} guessed the word '{self.word}' correctly!")
             self.save_and_reset()
         elif self.attempts_remaining == 0:
             play_sound(LOSE_SOUND)
             messagebox.showinfo("Hangman", f"Game over! The word was '{self.word}'. Better luck next time.")
             self.save_and_reset()
 
+    def switch_player(self):
+        self.current_player = 2 if self.current_player == 1 else 1
+        self.player_label.config(text=f"Player {self.current_player}'s Turn")
+
     def save_and_reset(self):
-        score = f"{self.attempts_remaining} attempts left - Word: {self.word}"
+        score = f"{self.attempts_remaining} attempts left - Word: {self.word} - Player {self.current_player}"
         save_high_score(score)
         self.word = choose_category()
         self.guessed_letters.clear()
         self.attempts_remaining = 6
+        self.current_player = 1  
         self.high_scores_label.config(text=f"High Scores:\n{display_high_scores()}")
         self.update_display()
 
+class StartMenu(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Hangman Start Menu")
+        self.geometry("300x200")
+
+        self.setup_menu()
+
+    def setup_menu(self):
+        tk.Label(self, text="Welcome to Hangman!", font=("Helvetica", 16)).pack(pady=20)
+
+        tk.Button(self, text="Single Player", command=self.start_single_player).pack(pady=10)
+        tk.Button(self, text="Multiplayer", command=self.start_multiplayer).pack(pady=10)
+
+    def start_single_player(self):
+        self.destroy() 
+        HangmanGame(mode='single').mainloop()
+
+    def start_multiplayer(self):
+        self.destroy() 
+        HangmanGame(mode='multiplayer').mainloop()
+
 if __name__ == "__main__":
-    HangmanGame().mainloop()
+    StartMenu().mainloop()
